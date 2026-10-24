@@ -1,0 +1,31 @@
+# crs_sdl --input (ticks): CONFIG from the title menu, then the cursor
+# down through every entry and back up: in the Game & Watch build SCREEN,
+# XSP_VERTICAL and STK_VERTICAL are left out and the cursor skips them.
+200 02 0
+210 00 0
+220 02 0
+230 00 0
+240 20 0
+250 00 0
+300 02 0
+310 00 0
+320 02 0
+330 00 0
+340 02 0
+350 00 0
+400 02 0
+410 00 0
+420 02 0
+430 00 0
+440 02 0
+450 00 0
+460 02 0
+470 00 0
+520 01 0
+530 00 0
+540 01 0
+550 00 0
+560 01 0
+570 00 0
+580 01 0
+590 00 0

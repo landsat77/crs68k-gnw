@@ -1,0 +1,9 @@
+# crs_sdl --input (ticks): START a game from the title menu, then press
+# START (the X68000's ESC) briefly in the stage: the game must stay paused
+# ("pause", no frames) until START is pressed again at tick 2000.
+200 20 0
+210 00 0
+1200 00 1
+1208 00 0
+2000 00 1
+2008 00 0

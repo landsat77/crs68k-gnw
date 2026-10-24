@@ -1,0 +1,16 @@
+# crs_sdl --input: from the title menu (START, CONTINUE, CONFIG, exit) to
+# CONFIG, down to SCREEN (third line), then right: the X68000 screen mode
+# changes (WORD_0005D506, CRTC registers). "frame joystick start", the
+# joystick in CRS_JOY_* bits (1 up, 2 down, 4 left, 8 right, 20 A, 40 B).
+200 02 0
+210 00 0
+220 02 0
+230 00 0
+240 20 0
+250 00 0
+300 02 0
+310 00 0
+320 02 0
+330 00 0
+340 08 0
+350 00 0

@@ -1,0 +1,11 @@
+# Built under Linux or the template's Docker image: keep LF line ends on
+# every checkout (Makefile recipes and shell scripts break with CRLF).
+* text=auto eol=lf
+*.png binary
+
+# The game's data and music, and the tools' programs, byte for byte (some
+# X68000 data files are text with CRLF line ends).
+game/data/** binary
+game/music/** binary
+game/sincos.dat binary
+tools/bin/** binary
