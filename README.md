@@ -1,5 +1,10 @@
 # Cho Ren Sha 68k for Game & Watch Retro-Go SD
 
+<img width="2880" height="2160" alt="image" src="https://github.com/user-attachments/assets/0bd0d491-a01f-447c-b54d-c1de5015ad5e" />
+
+
+
+
 **Cho Ren Sha 68k** (超連射68k), the X68000 vertical shoot 'em up by
 Famibe No Yosshin (1995-1998), on the Nintendo Game & Watch (Zelda or
 Mario) with the [Retro-Go SD](https://github.com/sylverb/game-and-watch-retro-go-sd)
