@@ -1,14 +1,17 @@
 # Cho Ren Sha 68k: the game's side of the build, included by the Makefile
 # after the SDK's rules (so C_OBJECTS is known).
 #
-#   make            the homebrew (ChoRenSha.bin) and the SD card's homebrew
-#                   folder in build/sd: the .bin and its pack (with the music)
+#   make            the homebrew (ChoRenSha.bin) and the SD card's homebrews
+#                   folder in build/sd: the .bin and its pack (with the music
+#                   and the ver1.10 backgrounds)
 #   make sd         the same
 #   MUSIC_RATE=Hz   the music's rate in the pack (default 11025: about
 #                   8.5 MB for the 26 minutes of music; 16000: 12.3 MB)
 #   make pc         the PC version, build/host/crs_sdl (SDL2)
 #   make check      the attract demo on the PC, from the image and from the
-#                   pack, against the Amiga port's reference run
+#                   pack, against the Amiga port's reference run, and the
+#                   ver1.10 backgrounds through every stage (bg-check)
+#   make bg-check   that last part alone (tests/tools/bg_check.c)
 #   make music      game/music again from game/data/BGM_DAT (optional: the
 #                   streams are in the repository; see tools/music)
 #   make musashi    src/musashi again (optional, see tools/update_musashi.sh)
@@ -21,7 +24,7 @@ MUSIC_RATE ?= 11025
 
 GAME_BUILD := build/game
 HOST_BUILD := build/host
-SD_DIR     := build/sd/homebrew
+SD_DIR     := build/sd/homebrews
 PACK_NAME  := $(basename $(PACKED_BIN))
 
 GAME_SOURCES := game/sz2.s game/sincos.dat game/mem_map.s game/host_stubs.s tools/build_image.sh
@@ -32,6 +35,7 @@ HOST_SOURCES := \
 src/crs/crs_core.c \
 src/crs/crs_memory.c \
 src/crs/crs_render.c \
+src/crs/crs_bg.c \
 src/crs/crs_audio.c \
 src/musashi/m68kcpu.c \
 src/musashi/m68kops.c \
@@ -81,14 +85,14 @@ $(SD_DIR)/$(PACKED_BIN): pack
 .PHONY: sd FORCE
 sd: $(SD_DIR)/$(PACKED_BIN) $(SD_DIR)/$(PACK_NAME).crs
 	$(V)rm -rf $(SD_DIR)/$(PACK_NAME)
-	$(V)$(ECHO) "[ SD ] build/sd: copy its homebrew folder to the SD card's root"
+	$(V)$(ECHO) "[ SD ] build/sd: copy its homebrews folder to the SD card's root"
 
 all: sd
 
 #######################################
 # PC version, checks
 #######################################
-.PHONY: pc check
+.PHONY: pc check bg-check
 
 pc: $(HOST_BUILD)/crs_sdl
 
@@ -98,8 +102,22 @@ $(HOST_BUILD)/crs_sdl: src/pc/sdl_main.c $(HOST_SOURCES) $(GAME_BUILD)/crs_symbo
 	$(V)$(HOSTCC) $(HOST_CFLAGS) $$(sdl2-config --cflags) -o $@ src/pc/sdl_main.c $(HOST_SOURCES) \
 		$$(sdl2-config --libs) -lm
 
-check: pc $(SD_DIR)/$(PACK_NAME).crs
+check: pc $(SD_DIR)/$(PACK_NAME).crs bg-check
 	$(V)tools/check.sh $(HOST_BUILD)/crs_sdl $(SD_DIR)/$(PACK_NAME).crs
+
+# The ver1.10 backgrounds: the attract demo, then a game through all the
+# stages (with cheats); no metatile may be drawn on screen.
+$(HOST_BUILD)/bg_check: tests/tools/bg_check.c $(HOST_SOURCES) $(GAME_BUILD)/crs_symbols.h
+	$(V)$(ECHO) [ HOSTCC ] bg_check
+	$(V)mkdir -p $(HOST_BUILD)
+	$(V)$(HOSTCC) $(HOST_CFLAGS) -o $@ tests/tools/bg_check.c $(filter-out src/crs/crs_bg.c,$(HOST_SOURCES)) -lm
+
+bg-check: $(HOST_BUILD)/bg_check $(GAME_BUILD)/sz2_host.bin
+	$(V)rm -rf build/bg_check && mkdir -p build/bg_check
+	$(V)$(HOST_BUILD)/bg_check 6000 > build/bg_check/demo.txt || { cat build/bg_check/demo.txt; exit 1; }
+	$(V)tail -n 1 build/bg_check/demo.txt
+	$(V)$(HOST_BUILD)/bg_check 100000 --play > build/bg_check/play.txt || { cat build/bg_check/play.txt; exit 1; }
+	$(V)tail -n 1 build/bg_check/play.txt
 
 #######################################
 # Made again on request

@@ -14,6 +14,7 @@
 	xdef amiga_xsp_vsync,compile_characters,compile_sprite
 	xdef prepare_sprite_infos,text_bitmaps,text_matrix
 	xdef host_frame_end,host_vbl,host_stubs_start,host_stubs_end
+	xdef host_bg_frame,host_bg_script
 
 	xref VBL_VWAIT_COUNTER,L_00000118
 
@@ -130,9 +131,19 @@ amiga_ship_control:
 amiga_music_loaded:
 	rts
 
-; GVRAM has been built (make_crs takes the backgrounds after it).
+; GVRAM has been built (make_crs takes the backgrounds after it): a game
+; starts (the ver1.10 backgrounds start too).
 
 amiga_graphics_changed:
+	rts
+
+; The ver1.10 backgrounds (src/crs/crs_bg.c): once per game frame, and at
+; each run of the stage script (before it).
+
+host_bg_frame:
+	rts
+
+host_bg_script:
 	rts
 
 amiga_escape_clear:

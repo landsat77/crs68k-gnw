@@ -1,6 +1,6 @@
 /*
  * The .crs pack: the game as the Game & Watch core loads it from the SD card
- * (/homebrew/ChoRenSha.crs, beside ChoRenSha.bin), made by tools/make_crs.c
+ * (/homebrews/ChoRenSha.crs, beside ChoRenSha.bin), made by tools/make_crs.c
  * from game/data. The firmware maps it from external flash, so everything
  * is read in place: little-endian fields, sections aligned to 4 KB.
  *
@@ -16,6 +16,8 @@
  *   "CPU "       the registers (crs_cpu_regs order), u32 each
  *   "PORT"       the port layer's state (crs_state_save)
  *   "GFX0/GFX1"  GVRAM pages 0 and 1: 512 x 512 graphics palette indices
+ *   "BG11"       the ver1.10 backgrounds (crs_bg.c): CRS_BG_DATA_SIZE bytes,
+ *                big-endian as on the X68000 (layout in crs.h)
  *   "ID  "       u32: the game image's checksum (CRS_IMAGE_ID); the core
  *                knows the image's symbols, so it only takes packs made
  *                from the same image

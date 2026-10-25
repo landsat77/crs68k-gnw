@@ -7,6 +7,37 @@ as the GitHub Release notes.
 
 ## [Unreleased]
 
+## [v1.1.0] - 2026-10-25
+
+### Added
+
+- The backgrounds of ver1.10: its two maps of metatiles, its palettes
+  (one per stage, faded from one to the next) and its scroll engine (speeds
+  per layer that change during the stages, loops of 16 rows, transitions),
+  driven by the stage scripts as in the ver1.10 X68000 program
+  (`src/crs/crs_bg.c`, data in `game/data/V110`, pack section "BG11").
+  Save states keep them.
+- Option **Backgrounds** in the Retro-Go menu (and F2 / `--bg100` on the
+  PC): `1.10` (default) or `1.0x`, the original game's.
+- `make bg-check` (part of `make check`): the attract demo and a game
+  through every stage (with cheats), checking that no background metatile
+  is ever drawn on screen.
+- A cover for the launcher (`src/assets/cover.png`, `scripts/make_cover.py`)
+  instead of the generated title card.
+- CI (`.github/workflows/ci.yml`): build and checks on every push; a
+  release made on github.com gets `ChoRenSha-vX.Y.Z.zip` (the SD card's
+  files and `INSTALL.md`) and a debug zip.
+- `INSTALL.md` (English and French).
+
+### Fixed
+
+- The SD card's folder is `/homebrews/` (the firmware's), not `/homebrew/`:
+  `make` puts the files in `build/sd/homebrews`.
+- The tools (vasm, vlink, the build and check scripts) lost their
+  executable bit in the repository: `make` failed with "Permission denied".
+
+## [v1.0.0] - 2026-10-24
+
 ### Added
 
 - The Cho Ren Sha 68k homebrew, from retro-go-sd-templates: the game's

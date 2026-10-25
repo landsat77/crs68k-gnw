@@ -1,0 +1,125 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  # a release made on github.com (it also makes the tag)
+  release:
+    types: [published]
+
+# Cancel superseded runs on the same ref (keeps PR feedback fast).
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    outputs:
+      packed_bin: ${{ steps.meta.outputs.packed_bin }}
+      target_elf: ${{ steps.meta.outputs.target_elf }}
+      target_map: ${{ steps.meta.outputs.target_map }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history + tags so `git describe --tags --dirty` works for CORE_VERSION.
+          fetch-depth: 0
+
+      - name: Install the tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-arm-none-eabi libnewlib-arm-none-eabi libsdl2-dev python3-pil
+
+      - name: Read project metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          echo "packed_bin=$(make --no-print-directory print-PACKED_BIN)" >> "${GITHUB_OUTPUT}"
+          echo "target_elf=$(make --no-print-directory print-TARGET_ELF)" >> "${GITHUB_OUTPUT}"
+          echo "target_map=$(make --no-print-directory print-TARGET_MAP)" >> "${GITHUB_OUTPUT}"
+
+      # The homebrew, its pack (the game, its music, the ver1.10
+      # backgrounds) and the SD card's folder, build/sd/homebrews.
+      - name: Build
+        run: make --no-print-directory -j"$(nproc)"
+
+      # The attract demo against the Amiga port's reference run, and the
+      # ver1.10 backgrounds through every stage.
+      - name: Check
+        run: make --no-print-directory check
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            build/sd/homebrews/
+            ${{ steps.meta.outputs.target_elf }}
+            ${{ steps.meta.outputs.target_map }}
+          if-no-files-found: error
+
+  release:
+    if: (github.event_name == 'push' || github.event_name == 'release') && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist
+
+      - name: Stage release assets
+        run: |
+          set -euo pipefail
+          PACKED_BIN="${{ needs.build.outputs.packed_bin }}"
+          TARGET_ELF="${{ needs.build.outputs.target_elf }}"
+          TARGET_MAP="${{ needs.build.outputs.target_map }}"
+          # The artifact keeps the paths below their common root, build/.
+          python3 scripts/stage_release.py \
+            --bin "dist/sd/homebrews/${PACKED_BIN}" \
+            --elf "dist/${TARGET_ELF#build/}" \
+            --map "dist/${TARGET_MAP#build/}" \
+            --tag "${GITHUB_REF_NAME}" \
+            --out release
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          mapfile -t names < release/release-files.txt
+          files=()
+          for name in "${names[@]}"; do
+            files+=("release/${name}")
+          done
+          # The release may already exist (made on github.com, which also
+          # makes the tag): add / replace the files and the notes.
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" --clobber "${files[@]}"
+            gh release edit "${TAG}" --notes-file release/RELEASE_NOTES.md
+          else
+            gh release create "${TAG}" \
+              --title "${TAG}" \
+              --notes-file release/RELEASE_NOTES.md \
+              "${files[@]}"
+          fi

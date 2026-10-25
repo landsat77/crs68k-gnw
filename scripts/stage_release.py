@@ -220,7 +220,19 @@ def stage_release(
 
     archive_name = f"{stem}-{tag_slug}.zip"
     archive_path = out_dir / archive_name
-    write_zip(archive_path, [(sd_bin, f"{sd_dir}/{packed_name}")])
+    # Cho Ren Sha 68k: the game (freeware) and its music are in the pack,
+    # made by `make` beside the .bin (build/sd/homebrews/<stem>.crs).
+    members = [(sd_bin, f"{sd_dir}/{packed_name}")]
+    pack = bin_path.with_suffix(".crs")
+    if not pack.is_file():
+        pack = ROOT / "build" / "sd" / sd_dir / f"{Path(packed_name).stem}.crs"
+    if not pack.is_file():
+        raise SystemExit(f"pack not found: {pack}")
+    members.append((pack, f"{sd_dir}/{pack.name}"))
+    for extra in (ROOT / "INSTALL.md",):
+        if extra.exists():
+            members.append((extra, extra.name))
+    write_zip(archive_path, members)
 
     debug_archive_name = f"{stem}-{tag_slug}-debug.zip"
     debug_archive_path = out_dir / debug_archive_name

@@ -37,6 +37,17 @@ __PORT__ equ 1
 
 	endif
 
+	ifd __GNW__
+
+	; For the ver1.10 backgrounds (src/crs/crs_bg.c): the stage script's
+	; phase and time.
+
+	xdef WORD_000A8EEA
+	xdef WORD_000A8EEC
+	xdef WORD_0008DB2C ; Holds the stage script after a boss (tests/tools/bg_check.c).
+
+	endif
+
 	xdef _start
 
 	text
@@ -13906,6 +13917,12 @@ L_00026FA0:
 	lea     16(A7),A7                               ; 00027040 4FEF 0010
 
 L_00027044:
+	ifd __GNW__
+
+	jsr		host_bg_frame ; The ver1.10 backgrounds' frame (SZ2.X $3D72).
+
+	endif
+
 	addq.w  #$1,BACKGROUND_SCROLL_COUNTER                       ; 00027044 5279 0008 DB34
 
 L_0002704A:
@@ -14573,6 +14590,12 @@ L_0002759C:
 	lea     16(A7),A7                               ; 00027606 4FEF 0010
 
 L_0002760A:
+	ifd __GNW__
+
+	jsr		host_bg_script ; The ver1.10 scripts' background actions.
+
+	endif
+
 	addq.w  #$1,WORD_000A8EEE                       ; 0002760A 5279 000A 8EEE
 	lea     PLAYER_SCORE,A0                        ; 00027610 41F9 0008 DB52
 	addq.w  #$4,A0                                  ; 00027616 5848

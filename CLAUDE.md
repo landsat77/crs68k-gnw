@@ -1,4 +1,72 @@
-# CLAUDE.md — Porting an emulator core (Retro-Go SD)
+# CLAUDE.md — Cho Ren Sha 68k homebrew (Retro-Go SD)
+
+This repo is ONE GWHB homebrew: Cho Ren Sha 68k (X68000) for the Game &
+Watch, built with the retro-go-sd-templates SDK. The second part of this
+file is the SDK's generic porting guide (memory map, audio, ABI).
+
+## Project notes
+
+- Target firmware: Retro-Go SD v2.0.0-rc1+ (ABI v2). Homebrews live in
+  `/homebrews/` (SD root, `RG_BASE_PATH_HOMEBREWS`), the pack
+  `ChoRenSha.crs` beside the `.bin` with the same stem, cached in external
+  flash (`odroid_overlay_cache_file_in_flash`) and read in place.
+- The game is the X68000 program as a re-assemblable disassembly
+  (`game/sz2.s`, the Amiga port's, built with `-D__AMIGA__ -D__GNW__`),
+  run in Musashi. `game/host_stubs.s` replaces the Amiga port layer: its
+  labels are hooks (`instruction_hook` in `src/crs/crs_core.c` acts when the
+  PC reaches one; every label has its own address, each stub ends in rts).
+  Symbols the C code needs must be `xdef`'d in sz2.s (they end up in
+  `build/game/crs_symbols.h` as `CRS_SYM_*`). Any change to sz2.s changes
+  `CRS_IMAGE_ID`: packs and save states of other builds are refused.
+- Gameplay must stay identical to the reference: `make check` compares the
+  6000-frame attract demo with the Amiga port's run
+  (`tests/reference/attract-6000.txt`) from the image and from the pack.
+- The pack (`tools/make_crs.c`, format in `src/crs/crs_pack.h`): the memory
+  pages at frame 2 (files loaded), registers, port state, the ver1.0x
+  GVRAM layers (GFX0/GFX1), the ver1.10 backgrounds (BG11), the music
+  (MUSI, IMA ADPCM).
+- Memory: the 68000 address space is paged (256 bytes, `crs_memory.c`);
+  pages the game writes come from the RAM left in RAM_EMU; GVRAM writes
+  are sunk (never kept).
+
+### Ver1.10 backgrounds (`src/crs/crs_bg.c`)
+
+- Reimplements the background engine of the ver1.10 X68000 program
+  (`SZ2.X` in the official `CH68_110.xdf`, text at 0; addresses in the
+  comments). Key routines: `$56AE` frame update (ring of 16 metatile rows
+  per layer, one metatile drawn every 4 scroll lines, 64 lines above the
+  screen on the upright screen; `$4A112` = rotated screen), `$58DE` set loop
+  (rows `-16a-b .. -16a-1`, the drawing continues down to it), `$5938`
+  queued loop, `$5574` whole ring, `$479A`/`$4864` palette fades (a quarter
+  of the palette per call, weight `(t+4)&~3`), `$5A3A` VBL (colour cycling
+  of graphics colours $91/$A1/$D1/$E1).
+- Driven from the ver1.0x game: `amiga_graphics_changed` (PLAY_GAME built
+  GVRAM: a game starts), `host_bg_script` (before the stage dispatch,
+  `L_0002760A`: stage = `PLAYER_SCORE+4`, phase `WORD_000A8EEA`, time
+  `WORD_000A8EEC`, same variables as ver1.10's `$4A0EE/$59328/$59326`),
+  `host_bg_frame` (before `BACKGROUND_SCROLL_COUNTER` is counted), VBL,
+  IOCS `_WIPE` (menus: ring cleared).
+- The `events[]` table holds every background action of the ver1.10 stage
+  scripts (`$6DE4..$D7BE`); actions done when a phase changes are at the
+  new phase's time 0. Not ported: the ver1.10 ending (stage 7 phase $400).
+- Deliberate change: after a layer scrolled backwards, ver1.10 keeps drawing
+  at its old line (rows may appear on screen); here `back[]` makes the
+  drawing wait until the screen is back. `make bg-check`
+  (`tests/tools/bg_check.c`, `--play` = cheats through all stages) must
+  report 0 metatiles drawn on screen.
+- Renderer: `crs_bg_line()` draws GVRAM lines from the ring's metatile
+  numbers (no GVRAM in RAM); `crs_bg_enabled` = menu option Backgrounds.
+
+### Releases
+
+- `CHANGELOG.md` section `## [vX.Y.Z] - date` per version; a release made
+  on github.com with tag `vX.Y.Z` makes the CI build, check and attach
+  `ChoRenSha-vX.Y.Z.zip` (homebrews/ChoRenSha.bin + .crs, INSTALL.md) and a
+  debug zip (`scripts/stage_release.py`).
+
+---
+
+# Porting an emulator core (Retro-Go SD) — the SDK's guide
 
 This repository is a **single-project** template for a Game & Watch
 **dynamic core** or a **GWHB homebrew**: a freestanding Cortex-M7 binary

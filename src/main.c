@@ -4,7 +4,7 @@
  * tools/make_crs.c (`make`):
  *
  * - as a homebrew (PROJECT_KIND_HOMEBREW, this repository's build):
- *   /homebrew/ChoRenSha.bin with ChoRenSha.crs beside it;
+ *   /homebrews/ChoRenSha.bin with ChoRenSha.crs beside it;
  * - as a core (PROJECT_KIND=core): the launcher would list the .crs packs
  *   in its system's folder and start app_main with one.
  *
@@ -17,7 +17,7 @@
  *   is shown once.
  * - Buttons: D-pad, A = shot (trigger A), B = trigger B, START (or GAME) =
  *   the X68000's ESC (pause; each press a clean pulse, see start_button).
- *   Pause menu: auto fire, music.
+ *   Pause menu: auto fire, music, backgrounds (ver1.10 or ver1.0x).
  * - Music: in the pack (ADPCM, cached in flash with the rest, so nothing
  *   is read from the SD card while playing). A song missing from it is
  *   streamed from <pack directory>/<pack name>/MUSIC/NAME.crm if there.
@@ -63,7 +63,7 @@ static char pack_path[256], music_dir[256];
 static int vbls_left;		/* VBLs the current game frame still lasts */
 static bool picture_ready;	/* a game frame ended since the last picture */
 static int music_on = 1;
-static char autofire_value[8], music_value[8];
+static char autofire_value[8], music_value[8], backgrounds_value[8];
 
 /* --- picture --- */
 
@@ -154,6 +154,23 @@ static bool music_cb(odroid_dialog_choice_t *option, odroid_dialog_event_t event
 	return event == ODROID_DIALOG_ENTER;
 }
 
+static void backgrounds_value_set(void)
+{
+	strcpy(backgrounds_value, crs_bg_enabled ? "1.10" : "1.0x");
+}
+
+static bool backgrounds_cb(odroid_dialog_choice_t *option, odroid_dialog_event_t event, uint32_t repeat)
+{
+	(void)repeat;
+	if (event == ODROID_DIALOG_PREV || event == ODROID_DIALOG_NEXT) {
+		crs_bg_enabled = !crs_bg_enabled;
+		odroid_settings_app_int32_set("bg110", crs_bg_enabled);
+	}
+	backgrounds_value_set();
+	(void)option;
+	return event == ODROID_DIALOG_ENTER;
+}
+
 /* --- buttons --- */
 
 /* START as the game's pause sees it. The pause waits for START released,
@@ -224,7 +241,7 @@ static void fatal(const char *message)
 void app_main(uint8_t load_state, uint8_t start_paused, int8_t save_slot)
 {
 	odroid_gamepad_state_t joystick;
-	odroid_dialog_choice_t options[3];
+	odroid_dialog_choice_t options[4];
 
 	gw_core_bridge_init();
 
@@ -244,18 +261,22 @@ void app_main(uint8_t load_state, uint8_t start_paused, int8_t save_slot)
 	music_on = odroid_settings_app_int32_get("music", 1) ? 1 : 0;
 	option_value(autofire_value, crs_input.autofire);
 	option_value(music_value, music_on);
+	crs_bg_enabled = odroid_settings_app_int32_get("bg110", 1) ? 1 : 0;
+	backgrounds_value_set();
 	options[0] = (odroid_dialog_choice_t){ .id = 100, .label = "Auto fire", .value = autofire_value,
 	                                       .enabled = 1, .update_cb = &autofire_cb };
 	options[1] = (odroid_dialog_choice_t){ .id = 101, .label = "Music", .value = music_value,
 	                                       .enabled = 1, .update_cb = &music_cb };
-	options[2] = (odroid_dialog_choice_t)ODROID_DIALOG_CHOICE_LAST;
+	options[2] = (odroid_dialog_choice_t){ .id = 102, .label = "Backgrounds", .value = backgrounds_value,
+	                                       .enabled = 1, .update_cb = &backgrounds_cb };
+	options[3] = (odroid_dialog_choice_t)ODROID_DIALOG_CHOICE_LAST;
 
 	lcd_clear_buffers();
 	audio_start_playing(SAMPLES_PER_VBL);
 
 	/* The pack, in flash: the ROM the launcher gives a core; beside a
-	   homebrew's .bin ("/homebrew/ChoRenSha.bin" ->
-	   "/homebrew/ChoRenSha.crs"). */
+	   homebrew's .bin ("/homebrews/ChoRenSha.bin" ->
+	   "/homebrews/ChoRenSha.crs"). */
 	if (!ACTIVE_FILE || !ACTIVE_FILE->path[0]) fatal("no pack");
 	snprintf(pack_path, sizeof pack_path, "%s", ACTIVE_FILE->path);
 #if defined(PROJECT_KIND_HOMEBREW)

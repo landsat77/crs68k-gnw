@@ -11,6 +11,9 @@
  * builds the same ones, except with the rotated screen setting
  * (WORD_0008DAFC), which the pack does not cover.
  *
+ * The ver1.10 backgrounds (data_dir/V110, loaded by crs_init) go in the
+ * "BG11" section.
+ *
  * Last, the music: every game/music/NAME.crm (22,050 Hz, 8-bit stereo, from
  * tools/music) mixed to mono, resampled to music_rate (default 11,025 Hz)
  * and encoded as IMA ADPCM (4 bits a sample) into the pack's "MUSI"
@@ -286,6 +289,14 @@ int main(int argc, char **argv)
 		for (int i = 0; i < CRS_PACK_LAYER_SIZE; i++)
 			layers[l].data[i] = crs_rd8(0xC00000 + l * 0x80000 + i * 2 + 1);	/* low byte of each word */
 
+	/* The ver1.10 backgrounds (game/data/V110, loaded by crs_init). */
+	if (!crs_bg_blob()) {
+		fprintf(stderr, "make_crs: no ver1.10 backgrounds (%s/V110)\n", argv[2]);
+		return 1;
+	}
+	section_t bg = { "BG11", malloc(CRS_BG_DATA_SIZE), CRS_BG_DATA_SIZE };
+	memcpy(bg.data, crs_bg_blob(), CRS_BG_DATA_SIZE);
+
 	section_t id = { "ID  ", malloc(4), 4 };
 	put32(id.data, CRS_IMAGE_ID);
 
@@ -293,7 +304,7 @@ int main(int argc, char **argv)
 	section_t music = make_music(argv[3], music_rate);
 
 	/* The file: header, section table, sections at 4 KB boundaries. */
-	section_t sections[] = { pages, data, cpu, port, layers[0], layers[1], id, music };
+	section_t sections[] = { pages, data, cpu, port, layers[0], layers[1], bg, id, music };
 	const uint32_t section_count = sizeof sections / sizeof sections[0];
 	uint32_t offset = CRS_PACK_ALIGN;
 	crs_pack_header_t header = { { 'C', 'R', 'S', 'P' }, CRS_PACK_VERSION, section_count };

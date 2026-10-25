@@ -13,6 +13,7 @@
  *   --save DIR        high scores and settings (default build/save)
  *   --scale N         window scale (default 3)
  *   --full            all 256 lines instead of the middle 240
+ *   --bg100           the game's own backgrounds (ver1.0x) instead of ver1.10's
  *   --no-music        no music streams
  *   --ram KB          the RAM for written pages, as on the Game & Watch
  *                     (default: enough for all 16 MB)
@@ -34,7 +35,7 @@
  *
  * Keys: arrows = directions, Z / Ctrl / Space = trigger A (shot),
  * X / Shift = trigger B, Return / P = START (pause; the X68000's ESC),
- * F1 = auto fire on/off, F5 = save state, F9 = load it (save_dir/state.crss),
+ * F1 = auto fire on/off, F2 = backgrounds ver1.10 / ver1.0x, F5 = save state, F9 = load it (save_dir/state.crss),
  * Escape = quit.
  */
 
@@ -150,6 +151,7 @@ int main(int argc, char **argv)
 		else if (!strcmp(a, "--save-state-at") && v && i + 2 < argc) save_at = atoi(v), save_state = argv[i + 2], i += 2;
 		else if (!strcmp(a, "--wav") && v) wav = v, i++;
 		else if (!strcmp(a, "--full")) full = 1;
+		else if (!strcmp(a, "--bg100")) crs_bg_enabled = 0;
 		else if (!strcmp(a, "--no-music")) config.music = 0;
 		else if (!strcmp(a, "--ram") && v) {
 			config.ram_size = atoi(v) * 1024;
@@ -302,6 +304,10 @@ int main(int argc, char **argv)
 		while (SDL_PollEvent(&e)) {
 			if (e.type == SDL_QUIT) running = 0;
 			if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE) running = 0;
+			if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F2 && !e.key.repeat) {
+				crs_bg_enabled = !crs_bg_enabled;
+				fprintf(stderr, "backgrounds of ver%s\n", crs_bg_enabled ? "1.10" : "1.0x");
+			}
 			if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_F1 && !e.key.repeat) {
 				crs_input.autofire = !crs_input.autofire;
 				fprintf(stderr, "auto fire %s\n", crs_input.autofire ? "on" : "off");

@@ -450,8 +450,11 @@ static void iocs_call(void)
 		else host_write16(a, d3);
 		break;
 	}
+	case 0xB5: /* _WIPE: the graphics screen cleared (the menus, after a game) */
+		crs_bg_wipe();
+		break;
 	case 0x10: case 0x20: case 0x22: case 0x23: case 0x7D: case 0x87: case 0x90:
-	case 0xAE: case 0xAF: case 0xB1: case 0xB2: case 0xB3: case 0xB4: case 0xB5:
+	case 0xAE: case 0xAF: case 0xB1: case 0xB2: case 0xB3: case 0xB4:
 	case 0xC1: case 0xC2: case 0xCA:
 		break;
 	default:
@@ -504,6 +507,7 @@ void instruction_hook(unsigned int pc)
 			crs_vbl_count++;
 			frame_vbls++;
 			crs_audio_vbl();
+			crs_bg_vbl();
 			break;
 		case CRS_SYM_amiga_exit_game:
 			stop();
@@ -515,7 +519,17 @@ void instruction_hook(unsigned int pc)
 			stage_frame = 1;
 			break;
 		case CRS_SYM_amiga_graphics_changed:
+			/* PLAY_GAME has built GVRAM: a game starts (stage in the
+			   score's fifth byte, as the stage dispatch reads it). */
 			crs_graphics_builds++;
+			crs_bg_game_start(crs_rd16(CRS_SYM_PLAYER_SCORE + 4));
+			break;
+		case CRS_SYM_host_bg_frame:
+			crs_bg_frame();
+			break;
+		case CRS_SYM_host_bg_script:
+			crs_bg_script(crs_rd16(CRS_SYM_PLAYER_SCORE + 4), crs_rd16(CRS_SYM_WORD_000A8EEA),
+			              (int16_t)crs_rd16(CRS_SYM_WORD_000A8EEC));
 			break;
 		case CRS_SYM_amiga_clear_text_planes:
 			/* Not traced: a port keeps the text layer its own way. Its
@@ -640,7 +654,8 @@ uint32_t crs_state_save(uint8_t *out)
 	for (unsigned i = 0; i < sizeof fields / sizeof fields[0]; i++) p = put32(p, fields[i]), size += 4;
 	if (p) memcpy(p, crs_sprite_list, sizeof crs_sprite_list), p += sizeof crs_sprite_list;
 	size += sizeof crs_sprite_list;
-	return size + crs_audio_state_save(p);
+	uint32_t audio = crs_audio_state_save(p);
+	return size + audio + crs_bg_state_save(p ? p + audio : NULL);
 }
 
 static void state_load(const uint8_t *p)
@@ -659,7 +674,7 @@ static void state_load(const uint8_t *p)
 	instructions_since_frame = get32(&p);
 	crs_graphics_builds = get32(&p);
 	memcpy(crs_sprite_list, p, sizeof crs_sprite_list);
-	crs_audio_state_load(p + sizeof crs_sprite_list);
+	crs_bg_state_load(crs_audio_state_load(p + sizeof crs_sprite_list));
 }
 
 /* The game as the pack holds it: its pages (the rest of memory is zero),
@@ -684,6 +699,9 @@ static int load_pack(void)
 	uint32_t music_size = 0;
 	const uint8_t *music = crs_pack_section(config.pack, config.pack_size, "MUSI", &music_size);
 	crs_audio_pack_music(music, music_size);
+	uint32_t bg_size = 0;
+	const uint8_t *bg = crs_pack_section(config.pack, config.pack_size, "BG11", &bg_size);
+	crs_bg_set_data(bg, bg_size);
 
 	const uint8_t *id = crs_pack_section(config.pack, config.pack_size, "ID  ", &id_size);
 	if (!id || id_size != 4 || (id[0] | id[1] << 8 | id[2] << 16 | (uint32_t)id[3] << 24) != CRS_IMAGE_ID) {
@@ -708,7 +726,7 @@ static int load_pack(void)
 /* Save states: "CRSS", version, CRS_IMAGE_ID, the registers, the port
    layer's state (size, then crs_state_save's bytes), the sound playing,
    then the memory (crs_memory_save). Little-endian. */
-#define STATE_VERSION 1
+#define STATE_VERSION 2
 
 int crs_save_state(FILE *f)
 {
@@ -792,8 +810,15 @@ int crs_init(const crs_config_t *c)
 	m68k_set_cpu_type(M68K_CPU_TYPE_68020);
 	m68k_set_instr_hook_callback(instruction_hook);
 	m68k_pulse_reset();
+	crs_bg_reset();
 
 	if (config.pack) return load_pack();
+
+#ifndef CRS_GNW
+	char v110_dir[1024];
+	snprintf(v110_dir, sizeof v110_dir, "%s/V110", config.data_dir);
+	crs_bg_load(v110_dir);
+#endif
 
 	/* The image, its non-zero pages only. */
 	FILE *f = fopen(config.image, "rb");

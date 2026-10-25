@@ -163,6 +163,35 @@ void crs_audio_song_loaded(uint32_t data, const char *name);
 void crs_audio_music_call(uint32_t function, uint32_t d1, uint32_t a0);
 void crs_audio_vbl(void);
 
+/* crs_bg.c: the ver1.10 backgrounds (new maps, palettes and scroll engine)
+   on the ver1.0x game. Their data, CRS_BG_DATA_SIZE bytes as in the pack's
+   "BG11" section (made by make_crs from game/data/V110, big-endian as on
+   the X68000): bg_pcg.sp (256 tiles 8 x 8, 4 bits), map.chp's 256
+   metatiles (4 x 4 cells, 16-bit words), map.bg0 and map.bg1 (1024 rows
+   of 8 metatile numbers, no headers), then the palettes bg_fb_nw, fy_np,
+   fy_nr, fb_np, fr_nb, fb_ny, st0, dark and lite (256 colours each). */
+#define CRS_BG_DATA_SIZE (0x2000 * 4 + 9 * 512)
+typedef struct {
+	const uint8_t *pcg, *chp, *map[2], *palettes;
+} crs_bg_data_t;
+extern int crs_bg_enabled;	/* 1: the ver1.10 backgrounds, 0: the game's own (ver1.0x) */
+int crs_bg_set_data(const uint8_t *blob, uint32_t size);
+int crs_bg_load(const char *v110_dir);	/* the files, for the image (PC) */
+int crs_bg_available(void);
+const uint8_t *crs_bg_blob(void);	/* the data (CRS_BG_DATA_SIZE bytes), or NULL */
+int crs_bg_active(void);	/* drawn now: enabled, data, and a game started */
+void crs_bg_reset(void);
+void crs_bg_game_start(int stage);
+void crs_bg_wipe(void);
+void crs_bg_script(int stage, int phase, int time);
+void crs_bg_frame(void);
+void crs_bg_vbl(void);
+uint16_t crs_bg_colour(int index);	/* X68000 colour of graphics palette entry index */
+int crs_bg_scroll(int layer);	/* the vertical scroll of GVRAM page 0 or 1 on screen */
+void crs_bg_line(int layer, int y, int x, int count, uint8_t *out);
+uint32_t crs_bg_state_save(uint8_t *out);
+const uint8_t *crs_bg_state_load(const uint8_t *in);
+
 /* Optional hooks (memtrace): defined by the front end when CRS_TRACE is set. */
 #ifdef CRS_TRACE
 #define CRS_TRACE_READ 0

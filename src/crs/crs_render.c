@@ -44,6 +44,19 @@ static uint16_t rgb565(uint32_t c)
    byte of each word). */
 static void graphics_line(int y, uint16_t *out)
 {
+	if (crs_bg_active()) {
+		/* The ver1.10 backgrounds (crs_bg.c): page 0 in front of page 1,
+		   no horizontal scroll. */
+		uint8_t line0[CRS_SCREEN_WIDTH], line1[CRS_SCREEN_WIDTH];
+		crs_bg_line(0, (crs_bg_scroll(0) + y) & 511, 0, CRS_SCREEN_WIDTH, line0);
+		crs_bg_line(1, (crs_bg_scroll(1) + y) & 511, 0, CRS_SCREEN_WIDTH, line1);
+		for (int x = 0; x < CRS_SCREEN_WIDTH; x++) {
+			uint8_t c = line0[x] ? line0[x] : line1[x];
+			out[x] = c ? c : 256;
+		}
+		return;
+	}
+
 	uint32_t x0 = crs_rd16(CRTC + 0x18) & 511, y0 = crs_rd16(CRTC + 0x1A) & 511;
 	uint32_t x1 = crs_rd16(CRTC + 0x20) & 511, y1 = crs_rd16(CRTC + 0x22) & 511;
 
@@ -139,7 +152,9 @@ static void sprites_line(int y, uint16_t *line)
 
 void crs_render(uint16_t *out, int stride, int first, int count)
 {
-	for (int i = 0; i < 512; i++) colours[i] = rgb565(crs_rd16(PALETTES + i * 2));
+	int bg = crs_bg_active();
+	for (int i = 0; i < 512; i++)
+		colours[i] = rgb565(bg && i < 256 ? crs_bg_colour(i) : crs_rd16(PALETTES + i * 2));
 	order_sprites();
 
 	/* R1 bits 13-12 = sprite priority, 11-10 = text priority (0 = front). */
